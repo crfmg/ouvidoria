@@ -2,6 +2,9 @@
 
 namespace App\Controllers;
 
+use App\Libraries\C_curl as c_curl;//classe para disparo de email via curl
+use App\Libraries\C_string as c_string;//classe para tratamento de strings
+
 use App\Models\ManifestacaoModel;
 use App\Models\ManifestacaoAtribuicaoModel;
 use App\Models\ManifestacaoHistoricoModel;
@@ -97,13 +100,20 @@ class ManifestacoesController extends BaseController
         $manifestacoes = $manifestacaoModel->orderBy('COALESCE(manifestacoes.data_manifestacao, manifestacoes.created_at)', 'DESC', false)
             ->limit(500)
             ->findAll();
-
         // Descriptografa assunto para exibição (quem pode visualizar)
-        try {
+        
+         try {
             $encryptionService = service('encryption');
             $manifestacoes = array_map(function ($m) use ($encryptionService, $authService, $usuario) {
                 if ($authService->podeVisualizarManifestacao($usuario ?? [], $m)) {
-                    return $encryptionService->descriptografarManifestacao($m);
+                    try {
+                        return $encryptionService->descriptografarManifestacao($m);
+                    } catch (\InvalidArgumentException $e) {
+                        // Uma chave incompatível não deve interromper os demais registros.
+                        $m['assunto'] = 'Assunto protegido';
+                        $m['descricao'] = '';
+                        $m['dados_identificacao'] = '';
+                    }
                 }
                 return $m;
             }, $manifestacoes);
@@ -145,6 +155,7 @@ class ManifestacoesController extends BaseController
                 ->getResultArray();
             $idsQueDevolvi = array_flip(array_column($idsQueDevolvi, 'manifestacao_id'));
         }
+
         $role = $usuario['role'] ?? '';
         foreach ($manifestacoes as &$m) {
             $atrib = $atribPorManif[(int) $m['id']] ?? null;
@@ -162,7 +173,6 @@ class ManifestacoesController extends BaseController
             }
         }
         unset($m);
-
         return view('ouvidoria/manifestacoes/index', [
             'manifestacoes' => $manifestacoes,
             'slaService' => $slaService,
@@ -710,9 +720,24 @@ class ManifestacoesController extends BaseController
      */
     public function encaminhar(int $id)
     {
+        //ticket #515 - inicio
+        $disparo_centralizado = array();
+        $usuario_login = null;
+        $manifestacao_id = null;
+        $protocolo_interno = null;
+        $protocolo_externo = null;
+        //ticket #515 - fim
+
         $usuario = obterUsuarioLogado();
         $manifestacaoModel = model(ManifestacaoModel::class);
         $manifestacao = $manifestacaoModel->find($id);
+        
+        //ticket #515 - inicio
+        $usuario_login = (string)$usuario['login'];
+        $manifestacao_id = (string)$manifestacao['id'];
+        $protocolo_interno = (string)$manifestacao['protocolo'];
+        $protocolo_externo = (string)$manifestacao['protocolo_falabr'];
+        //ticket #515 - fim
 
         if (!$manifestacao || !service('authorization')->podeEncaminhar($usuario ?? [], $manifestacao)) {
             session()->setFlashdata(getMessageFail('toast', ['text' => 'Acesso negado.']));
@@ -720,6 +745,7 @@ class ManifestacoesController extends BaseController
         }
 
         $usuariosIds = $this->request->getPost('usuarios');
+
         if (empty($usuariosIds) || !is_array($usuariosIds)) {
             session()->setFlashdata(getMessageFail('toast', ['text' => 'Selecione pelo menos um usuário.']));
             return redirect()->back();
@@ -753,6 +779,7 @@ class ManifestacoesController extends BaseController
         $usuarioModel = model(UsuarioModel::class);
         $emailService = service('emailOuvidoria');
 
+
         $mensagem = $this->request->getPost('mensagem_encaminhamento') ?? '';
         $statusAtual = $manifestacao['status'];
 
@@ -763,6 +790,7 @@ class ManifestacoesController extends BaseController
         $destinatarios = [];
 
         foreach ($usuariosIds as $userId) {
+
             $atribuicaoModel->insert([
                 'manifestacao_id' => $id,
                 'atribuido_por_usuario_id' => $usuario['id'],
@@ -774,9 +802,11 @@ class ManifestacoesController extends BaseController
                 'criado_em' => date('Y-m-d H:i:s'),
             ]);
 
+
             $dest = $usuarioModel->find((int) $userId);
             if ($dest) {
                 $destinatarios[$dest['email']] = $dest['nome'];
+                $disparo_centralizado[] = (string)$dest['email'];
             }
         }
 
@@ -793,6 +823,22 @@ class ManifestacoesController extends BaseController
             'de_nome' => $usuario['nome'] ?? $usuarioModel->find($usuario['id'])['nome'] ?? 'Sistema',
             'para_nomes' => $paraNomes,
         ]);
+
+        //ticket #515 - inicio
+        $c_curl = new c_curl();
+        $c_string = new c_string();
+        foreach ($disparo_centralizado as $dc) {
+            $envio = $c_curl -> email_origem_interna(array('conta' => 'noreply', 'email' => $dc, 'ad_user' => $usuario_login, 'sistema' => 'Ouvidoria', 'assunto' => $c_string -> iso('Alerta de Encaminhamento de Denúncia'), 'conteudo' => '<b>Alerta do Sistema de Ouvidoria do CRF/MG</b><br>Uma denúncia foi encaminhada para você!<br><br><i>Manifestação: </i>#'.$manifestacao_id.'<br><i>Protocolo: </i>'.$protocolo_interno.'<br><i>FalaBR: </i>'.$protocolo_externo.'<br><i>Mensagem: </i>'.$mensagem.'<br><br><u>Fique atento aos prazos!!!</u>', 'funcionalidade' => 'Encaminhamento de denúncia'));
+            unset($envio);
+        }
+        unset($c_curl);
+        unset($c_string);
+        unset($disparo_centralizado);
+        unset($usuario_login);
+        unset($manifestacao_id);
+        unset($protocolo_interno);
+        unset($protocolo_externo);
+        //ticket #515 - fim
 
         $emailService->notificarEncaminhamento($destinatarios, $manifestacao['protocolo'], $mensagem, $usuario['nome'] ?? 'Sistema');
 
