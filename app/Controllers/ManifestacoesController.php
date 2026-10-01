@@ -828,7 +828,7 @@ class ManifestacoesController extends BaseController
         $c_curl = new c_curl();
         $c_string = new c_string();
         foreach ($disparo_centralizado as $dc) {
-            $envio = $c_curl -> email_origem_interna(array('conta' => 'noreply', 'email' => $dc, 'ad_user' => $usuario_login, 'sistema' => 'Ouvidoria', 'assunto' => $c_string -> iso('Alerta de Encaminhamento de Denúncia'), 'conteudo' => '<b>Alerta do Sistema de Ouvidoria do CRF/MG</b><br>Uma denúncia foi encaminhada para você!<br><br><i>Manifestação: </i>#'.$manifestacao_id.'<br><i>Protocolo: </i>'.$protocolo_interno.'<br><i>FalaBR: </i>'.$protocolo_externo.'<br><i>Mensagem: </i>'.$mensagem.'<br><br><u>Fique atento aos prazos!!!</u>', 'funcionalidade' => 'Encaminhamento de denúncia'));
+            $envio = $c_curl -> email_origem_interna(array('conta' => 'noreply', 'email' => $dc, 'ad_user' => $usuario_login, 'sistema' => 'Ouvidoria', 'assunto' => $c_string -> iso('Alerta de Encaminhamento de Denúncia'), 'conteudo' => '<b>Alerta do Sistema de Ouvidoria do CRF/MG</b><br>Uma denúncia foi encaminhada para você!<br><br><i>Manifestação: </i>#'.$manifestacao_id.'<br><i>Protocolo: </i>'.$protocolo_interno.'<br><i>FalaBR: </i>'.$protocolo_externo.'<br><br><u>Fique atento aos prazos!!!</u>', 'funcionalidade' => 'Encaminhamento de denúncia'));
             unset($envio);
         }
         unset($c_curl);
