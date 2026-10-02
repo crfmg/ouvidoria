@@ -80,6 +80,60 @@ $cardClass = function ($key) use ($ativo) {
             </div>
         </a>
     </div>
+    <div class="col-12">
+        <div class="<?= $cardClass('estatisticas') ?>">
+            <div class="card-body">
+                <p class="text-muted small mb-1">Estatísticas</p>
+                <table class="table col-12">
+                    <tr align="right" valign="top">
+                        <td align="left"><h4 class="mb-0 text-success"><?php echo date('Y'); ?></h4></td>
+                        <td><b>JAN</b></td>
+                        <td><b>FEV</b></td>
+                        <td><b>MAR</b></td>
+                        <td><b>ABR</b></td>
+                        <td><b>MAI</b></td>
+                        <td><b>JUN</b></td>
+                        <td><b>JUL</b></td>
+                        <td><b>AGO</b></td>
+                        <td><b>SET</b></td>
+                        <td><b>OUT</b></td>
+                        <td><b>NOV</b></td>
+                        <td><b>DEZ</b></td>
+                    </tr>
+                    <tr align="right" valign="top">
+                        <td align="left"><b>Recebidas</b></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_recebidas[1])) ? $manifestacoes_recebidas[1] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_recebidas[2])) ? $manifestacoes_recebidas[2] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_recebidas[3])) ? $manifestacoes_recebidas[3] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_recebidas[4])) ? $manifestacoes_recebidas[4] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_recebidas[5])) ? $manifestacoes_recebidas[5] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_recebidas[6])) ? $manifestacoes_recebidas[6] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_recebidas[7])) ? $manifestacoes_recebidas[7] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_recebidas[8])) ? $manifestacoes_recebidas[8] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_recebidas[9])) ? $manifestacoes_recebidas[9] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_recebidas[10])) ? $manifestacoes_recebidas[10] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_recebidas[11])) ? $manifestacoes_recebidas[11] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_recebidas[12])) ? $manifestacoes_recebidas[12] : 0; ?></h4></td>
+                    </tr>
+                    <tr align="right" valign="top">
+                        <td align="left"><b>Respondidas</b></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_respondidas[1])) ? $manifestacoes_respondidas[1] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_respondidas[2])) ? $manifestacoes_respondidas[2] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_respondidas[3])) ? $manifestacoes_respondidas[3] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_respondidas[4])) ? $manifestacoes_respondidas[4] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_respondidas[5])) ? $manifestacoes_respondidas[5] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_respondidas[6])) ? $manifestacoes_respondidas[6] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_respondidas[7])) ? $manifestacoes_respondidas[7] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_respondidas[8])) ? $manifestacoes_respondidas[8] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_respondidas[9])) ? $manifestacoes_respondidas[9] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_respondidas[10])) ? $manifestacoes_respondidas[10] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_respondidas[11])) ? $manifestacoes_respondidas[11] : 0; ?></h4></td>
+                        <td><h4 class="mb-0 text-success"><?php echo (isset($manifestacoes_respondidas[12])) ? $manifestacoes_respondidas[12] : 0; ?></h4></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>

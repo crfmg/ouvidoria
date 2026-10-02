@@ -93,4 +93,12 @@ class ManifestacaoModel extends Model
     {
         return in_array($status, ['finalizada', 'arquivada']);
     }
+
+    public function estatistica_recebidas() { 
+        return $this -> db -> query("SELECT date_format(data_manifestacao, '%c') as mes,count(*) as total FROM manifestacoes group by date_format(data_manifestacao, '%c') order by 1;") -> getResultArray(); 
+    }
+
+    public function estatistica_respondidas() { 
+        return $this -> db -> query("SELECT date_format(data_finalizacao, '%c') as mes,count(*) as total FROM manifestacoes where data_finalizacao is not null group by date_format(data_finalizacao, '%c') order by 1;") -> getResultArray(); 
+    }
 }

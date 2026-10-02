@@ -66,6 +66,22 @@ class DashboardController extends BaseController
     {
         $usuario = obterUsuarioLogado();
         $manifestacaoModel = model(ManifestacaoModel::class);
+
+        //ticket #515 - inicio
+        $manifestacoes_recebidas = array();
+        $row = $manifestacaoModel -> estatistica_recebidas();
+        foreach ($row as $r) {
+            $manifestacoes_recebidas[$r['mes']] = $r['total'];
+        }
+        unset($row);
+        $manifestacoes_respondidas = array();
+        $row = $manifestacaoModel -> estatistica_respondidas();
+        foreach ($row as $r) {
+            $manifestacoes_respondidas[$r['mes']] = $r['total'];
+        }
+        unset($row);
+        //ticket #515 - fim
+
         $solicitacaoPrazoModel = model(ManifestacaoSolicitacaoPrazoModel::class);
         $slaService = service('sla');
 
@@ -194,6 +210,8 @@ class DashboardController extends BaseController
             'dataFim' => $dataFim,
             'idsDevolvidoOuvidor' => $idsDevolvidoOuvidor,
             'menu_ativo' => $this->dados['menu_ativo'],
+            'manifestacoes_recebidas' => $manifestacoes_recebidas,
+            'manifestacoes_respondidas' => $manifestacoes_respondidas,
         ]);
     }
 
@@ -207,6 +225,22 @@ class DashboardController extends BaseController
 
         $atribuicaoModel = model(ManifestacaoAtribuicaoModel::class);
         $manifestacaoModel = model(ManifestacaoModel::class);
+
+        //ticket #515 - inicio
+        $manifestacoes_recebidas = array();
+        $row = $manifestacaoModel -> estatistica_recebidas();
+        foreach ($row as $r) {
+            $manifestacoes_recebidas[$r['mes']] = $r['total'];
+        }
+        unset($row);
+        $manifestacoes_respondidas = array();
+        $row = $manifestacaoModel -> estatistica_respondidas();
+        foreach ($row as $r) {
+            $manifestacoes_respondidas[$r['mes']] = $r['total'];
+        }
+        unset($row);
+        //ticket #515 - fim
+
         $slaService = service('sla');
 
         $db = \Config\Database::connect();
@@ -327,6 +361,8 @@ class DashboardController extends BaseController
             'slaService' => $slaService,
             'statusFiltro' => $statusFiltro,
             'menu_ativo' => $this->dados['menu_ativo'],
+            'manifestacoes_recebidas' => $manifestacoes_recebidas,
+            'manifestacoes_respondidas' => $manifestacoes_respondidas,
         ]);
     }
 
