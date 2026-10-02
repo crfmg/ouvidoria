@@ -19,17 +19,26 @@ Manifestações - Ouvidoria
     <a href="<?= url_to('ouvidoria.manifestacoes.create') ?>" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Nova Manifestação</a>
     <?php endif; ?>
 </div>
-
 <form method="get" class="mb-4">
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <h6 class="text-muted mb-3"><i class="fas fa-filter me-1"></i>Filtros</h6>
-            <div class="row g-2 align-items-end">
-                <div class="col-12 col-md-2">
+            <div class="col-12 row g-2 align-items-end">
+                <div class="col-12 col-md-4">
                     <label class="form-label small mb-0">Protocolo</label>
                     <input type="text" name="protocolo" class="form-control form-control-sm" value="<?= esc($_GET['protocolo'] ?? '') ?>" placeholder="Buscar por protocolo">
                 </div>
-                <div class="col-12 col-md-2">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small mb-0">Data início</label>
+                    <input type="date" name="data_inicio" class="form-control form-control-sm" value="<?= esc($_GET['data_inicio'] ?? '') ?>">
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small mb-0">Data fim</label>
+                    <input type="date" name="data_fim" class="form-control form-control-sm" value="<?= esc($_GET['data_fim'] ?? '') ?>">
+                </div>
+            </div>
+            <div class="col-12 row g-2 align-items-end">
+                <div class="col-12 col-md-4">
                     <label class="form-label small mb-0">Prioridade</label>
                     <select name="prioridade" class="form-select form-select-sm">
                         <option value="">Todas</option>
@@ -38,7 +47,7 @@ Manifestações - Ouvidoria
                         <option value="alta" <?= (isset($_GET['prioridade']) && $_GET['prioridade'] === 'alta') ? 'selected' : '' ?>>Alta</option>
                     </select>
                 </div>
-                <div class="col-12 col-md-2">
+                <div class="col-12 col-md-4">
                     <label class="form-label small mb-0">Status</label>
                     <select name="status" class="form-select form-select-sm">
                         <option value="">Todos</option>
@@ -50,14 +59,24 @@ Manifestações - Ouvidoria
                         <option value="arquivada" <?= (isset($_GET['status']) && $_GET['status'] === 'arquivada') ? 'selected' : '' ?>>Arquivada</option>
                     </select>
                 </div>
-                <div class="col-12 col-md-2">
-                    <label class="form-label small mb-0">Data início</label>
-                    <input type="date" name="data_inicio" class="form-control form-control-sm" value="<?= esc($_GET['data_inicio'] ?? '') ?>">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small mb-0">Fiscais</label>
+                    <select name="fiscais" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                        <?php
+                            foreach ($filtro_fiscais as $ff) {
+                                if (isset($_GET['fiscais']) && ($_GET['fiscais'] === $ff['id'])) {
+                                    echo '<option value="'.$ff['id'].'" selected>'.$ff['nome'].'</option>';
+                                }else{
+                                    echo '<option value="'.$ff['id'].'">'.$ff['nome'].'</option>';
+                                }
+                            }
+                        ?>
+                    </select>
                 </div>
-                <div class="col-12 col-md-2">
-                    <label class="form-label small mb-0">Data fim</label>
-                    <input type="date" name="data_fim" class="form-control form-control-sm" value="<?= esc($_GET['data_fim'] ?? '') ?>">
-                </div>
+            </div>
+            <br>
+            <div class="col-12 row g-2 align-items-end">
                 <div class="col-12 col-md-2">
                     <button type="submit" class="btn btn-sm btn-primary w-100"><i class="fas fa-search me-1"></i>Filtrar</button>
                 </div>

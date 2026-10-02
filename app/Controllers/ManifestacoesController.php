@@ -96,6 +96,12 @@ class ManifestacoesController extends BaseController
                 ->where('DATE(COALESCE(manifestacoes.data_manifestacao, manifestacoes.created_at)) <=', $dataFim)
             ->groupEnd();
         }
+        //ticket #515 -inicio
+        if ($fiscal = $this->request->getGet('fiscais')) {
+            $manifestacaoModel->join('manifestacao_atribuicoes ma', 'manifestacoes.id = ma.manifestacao_id', 'inner')
+                ->where('ma.atribuido_para_usuario_id', $fiscal);
+        }
+        //ticket #515 -fim
 
         $manifestacoes = $manifestacaoModel->orderBy('COALESCE(manifestacoes.data_manifestacao, manifestacoes.created_at)', 'DESC', false)
             ->limit(500)
@@ -173,10 +179,21 @@ class ManifestacoesController extends BaseController
             }
         }
         unset($m);
+        //ticket #515 - inicio
+        $filtro_fiscais = array();
+        $usuarioModel = model(UsuarioModel::class);
+        $todosUsuarios = $usuarioModel->ativos()->orderBy('nome')->findAll();
+        foreach ($todosUsuarios as $tu) {
+            if (!empty($tu['fiscal_id'])) {
+                $filtro_fiscais[] = array('id' => $tu['id'], 'nome' => $tu['nome']);
+            }
+        }
+        //ticket #515 - fim
         return view('ouvidoria/manifestacoes/index', [
             'manifestacoes' => $manifestacoes,
             'slaService' => $slaService,
             'authService' => $authService,
+            'filtro_fiscais' => $filtro_fiscais,
         ]);
     }
 
