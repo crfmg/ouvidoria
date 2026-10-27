@@ -231,7 +231,30 @@ class ManifestacoesController extends BaseController
         if (!in_array($tipo, ['PF', 'PJ'], true) || !preg_match('/^\d{1,30}$/', $inscricao)) {
             return $this->response->setStatusCode(422)->setJSON([
                 'success' => false,
+                'code' => 'IDENTIFICACAO_INVALIDA',
                 'message' => 'Informe uma inscrição válida.',
+            ]);
+        }
+
+        $configuracaoBanco = config(\Config\Database::class)->pharmakon;
+        $camposObrigatorios = ['hostname', 'username', 'database', 'DBDriver'];
+        foreach ($camposObrigatorios as $campo) {
+            if (trim((string) ($configuracaoBanco[$campo] ?? '')) === '') {
+                log_message('error', 'Consulta de identificação indisponível [PHARMAKON_CONFIG]: campo ' . $campo . ' não configurado.');
+                return $this->response->setStatusCode(503)->setJSON([
+                    'success' => false,
+                    'code' => 'PHARMAKON_CONFIG',
+                    'message' => 'A conexão com o cadastro corporativo não está configurada neste servidor.',
+                ]);
+            }
+        }
+
+        if (strtoupper((string) $configuracaoBanco['DBDriver']) === 'SQLSRV' && !extension_loaded('sqlsrv')) {
+            log_message('error', 'Consulta de identificação indisponível [PHARMAKON_DRIVER]: extensão sqlsrv não carregada.');
+            return $this->response->setStatusCode(503)->setJSON([
+                'success' => false,
+                'code' => 'PHARMAKON_DRIVER',
+                'message' => 'O driver SQL Server não está habilitado neste servidor.',
             ]);
         }
 
@@ -251,16 +274,24 @@ class ManifestacoesController extends BaseController
                 )->getRowArray();
             }
         } catch (\Throwable $e) {
-            log_message('error', 'Erro ao consultar identificação no Pharmakon: ' . $e->getMessage());
+            log_message('error', sprintf(
+                'Erro ao consultar identificação no Pharmakon [PHARMAKON_CONNECTION] (%s): %s em %s:%d',
+                get_class($e),
+                $e->getMessage(),
+                $e->getFile(),
+                $e->getLine()
+            ));
             return $this->response->setStatusCode(503)->setJSON([
                 'success' => false,
-                'message' => 'Não foi possível consultar o cadastro agora.',
+                'code' => 'PHARMAKON_CONNECTION',
+                'message' => 'O servidor não conseguiu acessar o cadastro corporativo.',
             ]);
         }
 
         if (!$registro) {
             return $this->response->setStatusCode(404)->setJSON([
                 'success' => false,
+                'code' => 'IDENTIFICACAO_NAO_ENCONTRADA',
                 'message' => $tipo === 'PJ' ? 'Estabelecimento não encontrado.' : 'Pessoa física não encontrada.',
             ]);
         }
