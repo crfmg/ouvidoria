@@ -239,7 +239,7 @@ class Database extends Config
             'compress'     => false,
             'strictOn'     => false,
             'failover'     => [],
-            'port'         => env('database.pharmakon.port'),
+            'port'         => intval(env('database.pharmakon.port')),
             'numberNative' => false,
         ];
     }
