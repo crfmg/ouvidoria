@@ -6,6 +6,22 @@ Nova Manifestação - Ouvidoria
 
 <?= $this->section('css') ?>
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<style>
+@media (min-width: 992px) {
+    .linha-identificacoes > .campo-prazo {
+        flex: 0 0 6.6667%;
+        max-width: 6.6667%;
+    }
+    .linha-identificacoes > .campo-prazo .form-label {
+        font-size: .75rem;
+        white-space: nowrap;
+    }
+    .linha-identificacoes > .campo-identificacao {
+        flex: 0 0 46.66665%;
+        max-width: 46.66665%;
+    }
+}
+</style>
 <?= $this->endSection() ?>
 
 <?= $this->section('content') ?>
@@ -65,14 +81,57 @@ Nova Manifestação - Ouvidoria
                     <option value="alta" <?= old('prioridade') === 'alta' ? 'selected' : '' ?>>Alta</option>
                 </select>
             </div>
-            <div class="col-12 col-md-4">
+            <?php
+            $inscricoesPj = old('inscricoes_pj');
+            $inscricoesPf = old('inscricoes_pf');
+            $inscricoesPj = is_array($inscricoesPj) && $inscricoesPj !== [] ? $inscricoesPj : [''];
+            $inscricoesPf = is_array($inscricoesPf) && $inscricoesPf !== [] ? $inscricoesPf : [''];
+            ?>
+            <div class="col-12">
+            <div class="row g-3 linha-identificacoes">
+            <div class="col-12 campo-prazo">
                 <label class="form-label">Prazo (dias)</label>
-                <input type="number" name="sla_prazo_em_dias" class="form-control" value="<?= esc(old('sla_prazo_em_dias', 30)) ?>" min="1">
+                <input type="number" name="sla_prazo_em_dias" class="form-control" value="<?= esc(old('sla_prazo_em_dias', 30)) ?>" min="1" aria-label="Prazo em dias">
             </div>
-            <div class="col-12 col-md-4">
-                <label class="form-label">Registro do Estabelecimento</label>
-                <input type="number" name="inscricao_pj_id" class="form-control" value="<?= esc(old('inscricao_pj_id')) ?>" placeholder="Número do estabelecimento" min="0" step="1">
-                <small class="text-muted">Opcional. Identificador do estabelecimento que recebe a manifestação.</small>
+            <div class="col-12 campo-identificacao">
+                <label class="form-label">Registros de Estabelecimento (PJ)</label>
+                <div id="listaInscricoesPj" class="d-grid gap-2">
+                    <?php foreach ($inscricoesPj as $inscricao): ?>
+                    <div class="item-inscricao">
+                        <div class="input-group">
+                            <input type="text" inputmode="numeric" pattern="[0-9]+" maxlength="30" name="inscricoes_pj[]" class="form-control inscricao-lookup" data-tipo="PJ" value="<?= esc($inscricao) ?>" placeholder="Número do estabelecimento">
+                            <button type="button" class="btn btn-outline-secondary btn-buscar-inscricao" title="Buscar estabelecimento"><i class="fas fa-search"></i></button>
+                            <button type="button" class="btn btn-outline-danger btn-remover-inscricao" title="Remover"><i class="fas fa-trash"></i></button>
+                        </div>
+                        <small class="resultado-inscricao d-block mt-1"></small>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary mt-2 btn-adicionar-inscricao" data-lista="listaInscricoesPj" data-nome="inscricoes_pj[]" data-tipo="PJ" data-placeholder="Número do estabelecimento">
+                    <i class="fas fa-plus me-1"></i>Adicionar estabelecimento
+                </button>
+                <small class="text-muted d-block mt-1">Opcional. Adicione todos os estabelecimentos relacionados.</small>
+            </div>
+            <div class="col-12 campo-identificacao">
+                <label class="form-label">Inscrições de Pessoa Física (PF)</label>
+                <div id="listaInscricoesPf" class="d-grid gap-2">
+                    <?php foreach ($inscricoesPf as $inscricao): ?>
+                    <div class="item-inscricao">
+                        <div class="input-group">
+                            <input type="text" inputmode="numeric" pattern="[0-9]+" maxlength="30" name="inscricoes_pf[]" class="form-control inscricao-lookup" data-tipo="PF" value="<?= esc($inscricao) ?>" placeholder="Número da inscrição PF">
+                            <button type="button" class="btn btn-outline-secondary btn-buscar-inscricao" title="Buscar pessoa física"><i class="fas fa-search"></i></button>
+                            <button type="button" class="btn btn-outline-danger btn-remover-inscricao" title="Remover"><i class="fas fa-trash"></i></button>
+                        </div>
+                        <small class="resultado-inscricao d-block mt-1"></small>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary mt-2 btn-adicionar-inscricao" data-lista="listaInscricoesPf" data-nome="inscricoes_pf[]" data-tipo="PF" data-placeholder="Número da inscrição PF">
+                    <i class="fas fa-plus me-1"></i>Adicionar inscrição PF
+                </button>
+                <small class="text-muted d-block mt-1">Opcional. Adicione todas as pessoas físicas relacionadas.</small>
+            </div>
+            </div>
             </div>
             <div class="col-12">
                 <label class="form-label">Anexos</label>
@@ -110,6 +169,132 @@ Nova Manifestação - Ouvidoria
 document.addEventListener('DOMContentLoaded', function() {
     var anexosPendentes = [];
     var inputAnexos = document.getElementById('anexosInput');
+    var urlBuscarIdentificacao = <?= json_encode(url_to('ouvidoria.manifestacoes.buscarIdentificacao'), JSON_UNESCAPED_SLASHES) ?>;
+
+    function adicionarInscricao(lista, nome, tipo, placeholder) {
+        var item = document.createElement('div');
+        item.className = 'item-inscricao';
+        var grupo = document.createElement('div');
+        grupo.className = 'input-group';
+
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.inputMode = 'numeric';
+        input.pattern = '[0-9]+';
+        input.maxLength = 30;
+        input.name = nome;
+        input.className = 'form-control inscricao-lookup';
+        input.dataset.tipo = tipo;
+        input.placeholder = placeholder;
+
+        var buscar = document.createElement('button');
+        buscar.type = 'button';
+        buscar.className = 'btn btn-outline-secondary btn-buscar-inscricao';
+        buscar.title = tipo === 'PJ' ? 'Buscar estabelecimento' : 'Buscar pessoa física';
+        buscar.innerHTML = '<i class="fas fa-search"></i>';
+
+        var remover = document.createElement('button');
+        remover.type = 'button';
+        remover.className = 'btn btn-outline-danger btn-remover-inscricao';
+        remover.title = 'Remover';
+        remover.innerHTML = '<i class="fas fa-trash"></i>';
+
+        var resultado = document.createElement('small');
+        resultado.className = 'resultado-inscricao d-block mt-1';
+
+        grupo.appendChild(input);
+        grupo.appendChild(buscar);
+        grupo.appendChild(remover);
+        item.appendChild(grupo);
+        item.appendChild(resultado);
+        lista.appendChild(item);
+        input.focus();
+    }
+
+    document.querySelectorAll('.btn-adicionar-inscricao').forEach(function(botao) {
+        botao.addEventListener('click', function() {
+            adicionarInscricao(
+                document.getElementById(botao.dataset.lista),
+                botao.dataset.nome,
+                botao.dataset.tipo,
+                botao.dataset.placeholder
+            );
+        });
+    });
+
+    document.addEventListener('click', function(evento) {
+        var buscar = evento.target.closest('.btn-buscar-inscricao');
+        if (buscar) {
+            buscarInscricao(buscar.closest('.item-inscricao').querySelector('.inscricao-lookup'));
+            return;
+        }
+        var botao = evento.target.closest('.btn-remover-inscricao');
+        if (!botao) return;
+        var item = botao.closest('.item-inscricao');
+        var lista = item.parentElement;
+        if (lista.querySelectorAll('.item-inscricao').length === 1) {
+            item.querySelector('input').value = '';
+            var resultado = item.querySelector('.resultado-inscricao');
+            resultado.textContent = '';
+            resultado.className = 'resultado-inscricao d-block mt-1';
+            return;
+        }
+        item.remove();
+    });
+
+    function buscarInscricao(input) {
+        var item = input.closest('.item-inscricao');
+        var resultado = item.querySelector('.resultado-inscricao');
+        var inscricao = input.value.trim();
+        if (!inscricao) {
+            resultado.textContent = '';
+            resultado.className = 'resultado-inscricao d-block mt-1';
+            return;
+        }
+        if (!/^\d+$/.test(inscricao)) {
+            resultado.textContent = 'Informe somente números.';
+            resultado.className = 'resultado-inscricao d-block mt-1 text-danger';
+            return;
+        }
+
+        resultado.textContent = 'Buscando...';
+        resultado.className = 'resultado-inscricao d-block mt-1 text-muted';
+        fetch(urlBuscarIdentificacao + '?tipo=' + encodeURIComponent(input.dataset.tipo) + '&inscricao=' + encodeURIComponent(inscricao), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function(response) {
+            return response.json().then(function(data) { return { ok: response.ok, data: data }; });
+        }).then(function(retorno) {
+            if (input.value.trim() !== inscricao) return;
+            if (!retorno.ok || !retorno.data.success) {
+                throw new Error(retorno.data.message || 'Cadastro não encontrado.');
+            }
+            var detalhe = retorno.data.detalhe ? ' — ' + retorno.data.detalhe : '';
+            resultado.textContent = retorno.data.nome + detalhe;
+            resultado.className = 'resultado-inscricao d-block mt-1 text-success fw-semibold';
+        }).catch(function(erro) {
+            if (input.value.trim() !== inscricao) return;
+            resultado.textContent = erro.message || 'Não foi possível realizar a consulta.';
+            resultado.className = 'resultado-inscricao d-block mt-1 text-danger';
+        });
+    }
+
+    document.addEventListener('focusout', function(evento) {
+        if (evento.target.classList.contains('inscricao-lookup')) {
+            buscarInscricao(evento.target);
+        }
+    });
+
+    document.addEventListener('input', function(evento) {
+        if (evento.target.classList.contains('inscricao-lookup')) {
+            var resultado = evento.target.closest('.item-inscricao').querySelector('.resultado-inscricao');
+            resultado.textContent = '';
+            resultado.className = 'resultado-inscricao d-block mt-1';
+        }
+    });
+
+    document.querySelectorAll('.inscricao-lookup').forEach(function(input) {
+        if (input.value.trim()) buscarInscricao(input);
+    });
 
     var quill = new Quill('#editor-descricao', {
         theme: 'snow',

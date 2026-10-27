@@ -91,22 +91,35 @@ Manifestação <?= esc($manifestacao['protocolo']) ?> - Ouvidoria
                 <?php endforeach; ?>
             </div>
             <?php endif; ?>
-            <div class="col-12 col-md-4">
-                <small class="text-muted d-block">Registro do Estabelecimento</small>
+            <div class="col-12 col-md-6">
+                <small class="text-muted d-block">Registros de Estabelecimento (PJ)</small>
                 <?php
                 $usuario = $usuario ?? [];
-                $inscricaoPjId = $manifestacao['inscricao_pj_id'] ?? null;
+                $inscricoesPj = isset($inscricoesPj) && is_array($inscricoesPj) ? $inscricoesPj : [];
+                $inscricoesPf = isset($inscricoesPf) && is_array($inscricoesPf) ? $inscricoesPf : [];
                 $podeIdentificarEstabelecimento = in_array($usuario['role'] ?? '', ['gerente', 'administrador']);
                 ?>
-                <?php if ($inscricaoPjId !== null && $inscricaoPjId !== ''): ?>
-                    <span class="me-2"><?= esc($inscricaoPjId) ?></span>
+                <?php if ($inscricoesPj !== []): ?>
+                    <?php foreach ($inscricoesPj as $inscricao): ?>
+                    <span class="badge bg-light text-dark border me-1"><?= esc($inscricao) ?></span>
+                    <?php endforeach; ?>
                 <?php else: ?>
                     <span class="text-muted">—</span>
                 <?php endif; ?>
                 <?php if ($podeIdentificarEstabelecimento): ?>
                     <button type="button" class="btn btn-sm btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#modalRegistroEstabelecimento" title="Identificar estabelecimento">
-                        <i class="fas fa-building me-1"></i>Identificar estabelecimento
+                        <i class="fas fa-address-card me-1"></i>Alterar identificações
                     </button>
+                <?php endif; ?>
+            </div>
+            <div class="col-12 col-md-6">
+                <small class="text-muted d-block">Inscrições de Pessoa Física (PF)</small>
+                <?php if ($inscricoesPf !== []): ?>
+                    <?php foreach ($inscricoesPf as $inscricao): ?>
+                    <span class="badge bg-light text-dark border me-1"><?= esc($inscricao) ?></span>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <span class="text-muted">—</span>
                 <?php endif; ?>
             </div>
         </div>
@@ -116,20 +129,46 @@ Manifestação <?= esc($manifestacao['protocolo']) ?> - Ouvidoria
 <?php if (!empty($podeIdentificarEstabelecimento)): ?>
 <!-- Modal: Identificar estabelecimento (gerente / administrador) -->
 <div class="modal fade" id="modalRegistroEstabelecimento" tabindex="-1" aria-labelledby="modalRegistroEstabelecimentoLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <?= form_open(url_to('ouvidoria.manifestacoes.updateInscricaoPj', $manifestacao['id'])) ?>
             <?= csrf_field() ?>
             <div class="modal-header">
-                <h5 class="modal-title" id="modalRegistroEstabelecimentoLabel"><i class="fas fa-building me-2"></i>Identificar estabelecimento</h5>
+                <h5 class="modal-title" id="modalRegistroEstabelecimentoLabel"><i class="fas fa-address-card me-2"></i>Identificações PF e PJ</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted small">Informe o número do estabelecimento que recebeu esta manifestação.</p>
-                <div class="mb-0">
-                    <label for="modalInscricaoPjId" class="form-label">Número do estabelecimento</label>
-                    <input type="number" name="inscricao_pj_id" id="modalInscricaoPjId" class="form-control" value="<?= esc($manifestacao['inscricao_pj_id'] ?? '') ?>" placeholder="Ex.: 12345" min="0" step="1">
-                    <small class="text-muted">Deixe em branco para limpar.</small>
+                <div class="mb-3">
+                    <label class="form-label">Registros de Estabelecimento (PJ)</label>
+                    <div id="modalListaInscricoesPj" class="d-grid gap-2">
+                        <?php foreach ($inscricoesPj !== [] ? $inscricoesPj : [''] as $inscricao): ?>
+                        <div class="item-inscricao">
+                            <div class="input-group">
+                                <input type="text" inputmode="numeric" pattern="[0-9]+" maxlength="30" name="inscricoes_pj[]" class="form-control inscricao-lookup" data-tipo="PJ" value="<?= esc($inscricao) ?>" placeholder="Número do estabelecimento">
+                                <button type="button" class="btn btn-outline-secondary btn-buscar-inscricao" title="Buscar estabelecimento"><i class="fas fa-search"></i></button>
+                                <button type="button" class="btn btn-outline-danger btn-remover-inscricao" title="Remover"><i class="fas fa-trash"></i></button>
+                            </div>
+                            <small class="resultado-inscricao d-block mt-1"></small>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary mt-2 btn-adicionar-inscricao" data-lista="modalListaInscricoesPj" data-nome="inscricoes_pj[]" data-tipo="PJ" data-placeholder="Número do estabelecimento"><i class="fas fa-plus me-1"></i>Adicionar estabelecimento</button>
+                </div>
+                <div>
+                    <label class="form-label">Inscrições de Pessoa Física (PF)</label>
+                    <div id="modalListaInscricoesPf" class="d-grid gap-2">
+                        <?php foreach ($inscricoesPf !== [] ? $inscricoesPf : [''] as $inscricao): ?>
+                        <div class="item-inscricao">
+                            <div class="input-group">
+                                <input type="text" inputmode="numeric" pattern="[0-9]+" maxlength="30" name="inscricoes_pf[]" class="form-control inscricao-lookup" data-tipo="PF" value="<?= esc($inscricao) ?>" placeholder="Número da inscrição PF">
+                                <button type="button" class="btn btn-outline-secondary btn-buscar-inscricao" title="Buscar pessoa física"><i class="fas fa-search"></i></button>
+                                <button type="button" class="btn btn-outline-danger btn-remover-inscricao" title="Remover"><i class="fas fa-trash"></i></button>
+                            </div>
+                            <small class="resultado-inscricao d-block mt-1"></small>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary mt-2 btn-adicionar-inscricao" data-lista="modalListaInscricoesPf" data-nome="inscricoes_pf[]" data-tipo="PF" data-placeholder="Número da inscrição PF"><i class="fas fa-plus me-1"></i>Adicionar inscrição PF</button>
                 </div>
             </div>
             <div class="modal-footer">
@@ -887,6 +926,82 @@ Manifestação <?= esc($manifestacao['protocolo']) ?> - Ouvidoria
 <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 <script>
 $(function() {
+    var urlBuscarIdentificacao = <?= json_encode(url_to('ouvidoria.manifestacoes.buscarIdentificacao'), JSON_UNESCAPED_SLASHES) ?>;
+
+    function adicionarInscricao(lista, nome, tipo, placeholder) {
+        var item = $('<div class="item-inscricao"></div>');
+        var grupo = $('<div class="input-group"></div>').appendTo(item);
+        $('<input>', {
+            type: 'text', inputmode: 'numeric', pattern: '[0-9]+', maxlength: 30,
+            name: nome, class: 'form-control inscricao-lookup', placeholder: placeholder,
+            'data-tipo': tipo
+        }).appendTo(grupo);
+        $('<button type="button" class="btn btn-outline-secondary btn-buscar-inscricao" title="Buscar"><i class="fas fa-search"></i></button>').appendTo(grupo);
+        $('<button type="button" class="btn btn-outline-danger btn-remover-inscricao" title="Remover"><i class="fas fa-trash"></i></button>').appendTo(grupo);
+        $('<small class="resultado-inscricao d-block mt-1"></small>').appendTo(item);
+        item.appendTo(lista).find('input').trigger('focus');
+    }
+    $(document).on('click', '.btn-adicionar-inscricao', function() {
+        adicionarInscricao($('#' + $(this).data('lista')), $(this).data('nome'), $(this).data('tipo'), $(this).data('placeholder'));
+    });
+    $(document).on('click', '.btn-remover-inscricao', function() {
+        var item = $(this).closest('.item-inscricao');
+        var lista = item.parent();
+        if (lista.find('.item-inscricao').length === 1) {
+            item.find('input').val('');
+            item.find('.resultado-inscricao').text('').removeClass('text-success text-danger text-muted fw-semibold');
+        } else {
+            item.remove();
+        }
+    });
+
+    function buscarInscricao(input) {
+        var $input = $(input);
+        var inscricao = $.trim($input.val());
+        var $resultado = $input.closest('.item-inscricao').find('.resultado-inscricao');
+
+        if (!inscricao) {
+            $resultado.text('').removeClass('text-success text-danger text-muted fw-semibold');
+            return;
+        }
+        if (!/^\d+$/.test(inscricao)) {
+            $resultado.text('Informe somente números.').removeClass('text-success text-muted fw-semibold').addClass('text-danger');
+            return;
+        }
+
+        $resultado.text('Buscando...').removeClass('text-success text-danger fw-semibold').addClass('text-muted');
+        fetch(urlBuscarIdentificacao + '?tipo=' + encodeURIComponent($input.data('tipo')) + '&inscricao=' + encodeURIComponent(inscricao), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function(response) {
+            return response.json().then(function(data) { return { ok: response.ok, data: data }; });
+        }).then(function(retorno) {
+            if ($.trim($input.val()) !== inscricao) return;
+            if (!retorno.ok || !retorno.data.success) {
+                throw new Error(retorno.data.message || 'Cadastro não encontrado.');
+            }
+            var detalhe = retorno.data.detalhe ? ' — ' + retorno.data.detalhe : '';
+            $resultado.text(retorno.data.nome + detalhe).removeClass('text-danger text-muted').addClass('text-success fw-semibold');
+        }).catch(function(erro) {
+            if ($.trim($input.val()) !== inscricao) return;
+            $resultado.text(erro.message || 'Não foi possível realizar a consulta.').removeClass('text-success text-muted fw-semibold').addClass('text-danger');
+        });
+    }
+
+    $(document).on('focusout', '#modalRegistroEstabelecimento .inscricao-lookup', function() {
+        buscarInscricao(this);
+    });
+    $(document).on('input', '#modalRegistroEstabelecimento .inscricao-lookup', function() {
+        $(this).closest('.item-inscricao').find('.resultado-inscricao').text('').removeClass('text-success text-danger text-muted fw-semibold');
+    });
+    $(document).on('click', '#modalRegistroEstabelecimento .btn-buscar-inscricao', function() {
+        buscarInscricao($(this).closest('.item-inscricao').find('.inscricao-lookup')[0]);
+    });
+    $('#modalRegistroEstabelecimento').on('shown.bs.modal', function() {
+        $(this).find('.inscricao-lookup').each(function() {
+            if ($.trim($(this).val())) buscarInscricao(this);
+        });
+    });
+
     $('#selectUsuariosEncaminhar').select2({
         width: '100%',
         placeholder: 'Selecione os usuários',

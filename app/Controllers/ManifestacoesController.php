@@ -8,6 +8,7 @@ use App\Libraries\C_string as c_string;//classe para tratamento de strings
 use App\Models\ManifestacaoModel;
 use App\Models\ManifestacaoAtribuicaoModel;
 use App\Models\ManifestacaoHistoricoModel;
+use App\Models\ManifestacaoInscricaoModel;
 use App\Models\ManifestacaoSolicitacaoPrazoModel;
 use App\Models\UsuarioModel;
 
@@ -220,6 +221,59 @@ class ManifestacoesController extends BaseController
     }
 
     /**
+     * Consulta uma inscrição no cadastro corporativo (Pharmakon).
+     */
+    public function buscarIdentificacao()
+    {
+        $tipo = strtoupper(trim((string) $this->request->getGet('tipo')));
+        $inscricao = trim((string) $this->request->getGet('inscricao'));
+
+        if (!in_array($tipo, ['PF', 'PJ'], true) || !preg_match('/^\d{1,30}$/', $inscricao)) {
+            return $this->response->setStatusCode(422)->setJSON([
+                'success' => false,
+                'message' => 'Informe uma inscrição válida.',
+            ]);
+        }
+
+        try {
+            $db = \Config\Database::connect('pharmakon');
+            if ($tipo === 'PJ') {
+                $registro = $db->query(
+                    'SELECT TOP 1 InscricaoPJId AS inscricao, RazaoSocial AS nome, NomeFantasia AS detalhe
+                     FROM TblPJ WHERE InscricaoPJId = ?',
+                    [(int) $inscricao]
+                )->getRowArray();
+            } else {
+                $registro = $db->query(
+                    'SELECT TOP 1 InscricaoPFId AS inscricao, NomePF AS nome
+                     FROM TblPF WHERE InscricaoPFId = ?',
+                    [(int) $inscricao]
+                )->getRowArray();
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Erro ao consultar identificação no Pharmakon: ' . $e->getMessage());
+            return $this->response->setStatusCode(503)->setJSON([
+                'success' => false,
+                'message' => 'Não foi possível consultar o cadastro agora.',
+            ]);
+        }
+
+        if (!$registro) {
+            return $this->response->setStatusCode(404)->setJSON([
+                'success' => false,
+                'message' => $tipo === 'PJ' ? 'Estabelecimento não encontrado.' : 'Pessoa física não encontrada.',
+            ]);
+        }
+
+        return $this->response->setJSON([
+            'success' => true,
+            'inscricao' => (string) $registro['inscricao'],
+            'nome' => trim((string) $registro['nome']),
+            'detalhe' => trim((string) ($registro['detalhe'] ?? '')),
+        ]);
+    }
+
+    /**
      * Salva nova manifestação.
      */
     public function store()
@@ -247,12 +301,19 @@ class ManifestacoesController extends BaseController
             return redirect()->back()->withInput();
         }
 
+        try {
+            $inscricoesPf = $this->normalizarInscricoes($this->request->getPost('inscricoes_pf'));
+            $inscricoesPj = $this->normalizarInscricoes($this->request->getPost('inscricoes_pj'));
+        } catch (\InvalidArgumentException $e) {
+            session()->setFlashdata(getMessageFail('toast', ['text' => $e->getMessage()]));
+            return redirect()->back()->withInput();
+        }
+
         $protocolo = $this->request->getPost('protocolo') ?: $manifestacaoModel->gerarProtocolo();
         $prazoDias = (int) ($this->request->getPost('sla_prazo_em_dias') ?: 30);
         $dataManifestacao = $this->request->getPost('data_manifestacao') ?: date('Y-m-d');
         $dataLimite = $slaService->calcularDataLimite($dataManifestacao . ' 00:00:00', $prazoDias);
 
-        $inscricaoPjId = $this->request->getPost('inscricao_pj_id');
         $dados = [
             'protocolo' => $protocolo,
             'protocolo_falabr' => $this->request->getPost('protocolo_falabr'),
@@ -266,7 +327,8 @@ class ManifestacoesController extends BaseController
             'sla_prazo_em_dias' => $prazoDias,
             'data_limite_sla' => $dataLimite,
             'criado_por_usuario_id' => $usuario['id'],
-            'inscricao_pj_id' => $inscricaoPjId !== '' && $inscricaoPjId !== null ? (int) $inscricaoPjId : null,
+            // Compatibilidade com consultas antigas: mantém a primeira inscrição PJ.
+            'inscricao_pj_id' => $this->primeiraInscricaoPjLegada($inscricoesPj),
         ];
 
         $db = \Config\Database::connect();
@@ -294,28 +356,27 @@ class ManifestacoesController extends BaseController
 
             $manifestacaoModel->update($manifestacaoId, $dadosCripto);
 
+            model(ManifestacaoInscricaoModel::class)
+                ->salvarParaManifestacao($manifestacaoId, $inscricoesPf, $inscricoesPj);
+
+            $categoriasIds = $this->request->getPost('categorias_ids');
+            if (is_array($categoriasIds)) {
+                model(\App\Models\ManifestacaoCategoriaModel::class)
+                    ->salvarParaManifestacao($manifestacaoId, $categoriasIds);
+            }
+
             $historicoModel->registrar($manifestacaoId, $usuario['id'], ManifestacaoHistoricoModel::TIPO_CRIACAO, [
                 'protocolo' => $protocolo,
             ]);
 
-            $db->transComplete();
+            if (!$db->transComplete()) {
+                throw new \RuntimeException('A transação de cadastro da manifestação foi revertida.');
+            }
         } catch (\Throwable $e) {
             $db->transRollback();
-            log_message('error', $e->getMessage());
-            // Se a manifestação foi commitada antes da exceção (ex.: transComplete já executou), não mostrar erro
-            if ($manifestacaoId && $manifestacaoModel->find($manifestacaoId)) {
-                session()->setFlashdata(getMessageSucess('toast', ['text' => 'Manifestação cadastrada com sucesso.']));
-                return redirect()->to(url_to('ouvidoria.manifestacoes.show', $manifestacaoId));
-            }
+            log_message('error', 'Erro ao cadastrar manifestação: ' . $e->getMessage());
             session()->setFlashdata(getMessageFail('toast', ['text' => 'Erro ao salvar manifestação.']));
             return redirect()->back()->withInput();
-        }
-
-        // Categorias (1 ou N)
-        $categoriasIds = $this->request->getPost('categorias_ids');
-        if (is_array($categoriasIds)) {
-            $manifestacaoCategoriaModel = model(\App\Models\ManifestacaoCategoriaModel::class);
-            $manifestacaoCategoriaModel->salvarParaManifestacao($manifestacaoId, $categoriasIds);
         }
 
         // Anexos fora da transação principal: falha em anexo não invalida o cadastro
@@ -497,6 +558,8 @@ class ManifestacoesController extends BaseController
         }
         unset($r);
 
+        $inscricoes = model(ManifestacaoInscricaoModel::class)->agrupadasPorManifestacao($id);
+
         return view('ouvidoria/manifestacoes/show', [
             'manifestacao' => $manifestacao,
             'historico' => $historico,
@@ -520,6 +583,8 @@ class ManifestacoesController extends BaseController
             'solicitacoesPrazo' => $solicitacoesPrazo,
             'respostasOuvidor' => $respostasOuvidor,
             'podeVerConteudoResposta' => $podeVerConteudo,
+            'inscricoesPf' => $inscricoes['PF'],
+            'inscricoesPj' => $inscricoes['PJ'],
         ]);
     }
 
@@ -554,12 +619,15 @@ class ManifestacoesController extends BaseController
         $categorias = $categoriaModel->listarAtivas();
         $manifestacaoCategoriaModel = model(\App\Models\ManifestacaoCategoriaModel::class);
         $categoriasIds = $manifestacaoCategoriaModel->idsPorManifestacao($id);
+        $inscricoes = model(ManifestacaoInscricaoModel::class)->agrupadasPorManifestacao($id);
 
         return view('ouvidoria/manifestacoes/edit', [
             'manifestacao' => $manifestacao,
             'anexos' => is_array($anexos) ? $anexos : [],
             'categorias' => $categorias,
             'categoriasIds' => $categoriasIds,
+            'inscricoesPf' => $inscricoes['PF'],
+            'inscricoesPj' => $inscricoes['PJ'],
         ]);
     }
 
@@ -592,12 +660,19 @@ class ManifestacoesController extends BaseController
             return redirect()->to(url_to('ouvidoria.manifestacoes.edit', $id))->withInput();
         }
 
+        try {
+            $inscricoesPf = $this->normalizarInscricoes($this->request->getPost('inscricoes_pf'));
+            $inscricoesPj = $this->normalizarInscricoes($this->request->getPost('inscricoes_pj'));
+        } catch (\InvalidArgumentException $e) {
+            session()->setFlashdata(getMessageFail('toast', ['text' => $e->getMessage()]));
+            return redirect()->to(url_to('ouvidoria.manifestacoes.edit', $id))->withInput();
+        }
+
         $slaService = service('sla');
         $prazoDias = (int) ($this->request->getPost('sla_prazo_em_dias') ?: 30);
         $dataManifestacao = $this->request->getPost('data_manifestacao') ?: ($manifestacao['data_manifestacao'] ?? date('Y-m-d'));
         $dataLimite = $slaService->calcularDataLimite($dataManifestacao . ' 00:00:00', $prazoDias);
 
-        $inscricaoPjId = $this->request->getPost('inscricao_pj_id');
         $dados = [
             'protocolo' => $this->request->getPost('protocolo'),
             'protocolo_falabr' => $this->request->getPost('protocolo_falabr'),
@@ -609,7 +684,7 @@ class ManifestacoesController extends BaseController
             'prioridade' => $this->request->getPost('prioridade') ?: 'media',
             'sla_prazo_em_dias' => $prazoDias,
             'data_limite_sla' => $dataLimite,
-            'inscricao_pj_id' => $inscricaoPjId !== '' && $inscricaoPjId !== null ? (int) $inscricaoPjId : null,
+            'inscricao_pj_id' => $this->primeiraInscricaoPjLegada($inscricoesPj),
         ];
 
         $db = \Config\Database::connect();
@@ -627,6 +702,8 @@ class ManifestacoesController extends BaseController
             ], $dek);
 
             $manifestacaoModel->update($id, array_merge($dados, $dadosCripto));
+            model(ManifestacaoInscricaoModel::class)
+                ->salvarParaManifestacao($id, $inscricoesPf, $inscricoesPj);
 
             $historicoModel = model(ManifestacaoHistoricoModel::class);
             $historicoModel->registrar($id, $usuario['id'], ManifestacaoHistoricoModel::TIPO_EDICAO_CAMPOS, []);
@@ -637,7 +714,9 @@ class ManifestacoesController extends BaseController
                 log_message('error', 'Erro ao processar anexos na edição da manifestação ' . $id . ': ' . $eAnexos->getMessage());
             }
 
-            $db->transComplete();
+            if (!$db->transComplete()) {
+                throw new \RuntimeException('A transação de atualização da manifestação foi revertida.');
+            }
         } catch (\Throwable $e) {
             $db->transRollback();
             log_message('error', 'Erro ao atualizar manifestação ' . $id . ': ' . $e->getMessage());
@@ -656,7 +735,7 @@ class ManifestacoesController extends BaseController
     }
 
     /**
-     * Atualiza apenas o Registro do Estabelecimento (inscricao_pj_id).
+     * Atualiza as identificações PF/PJ relacionadas à manifestação.
      * Permitido para ouvidor/admin (em qualquer momento) e para gerente (quem recebeu a manifestação).
      */
     public function updateInscricaoPj(int $id)
@@ -683,13 +762,80 @@ class ManifestacoesController extends BaseController
             return redirect()->back();
         }
 
-        $inscricaoPjId = $this->request->getPost('inscricao_pj_id');
-        $valor = ($inscricaoPjId !== '' && $inscricaoPjId !== null) ? (int) $inscricaoPjId : null;
+        try {
+            $inscricoesPf = $this->normalizarInscricoes($this->request->getPost('inscricoes_pf'));
+            $inscricoesPj = $this->normalizarInscricoes($this->request->getPost('inscricoes_pj'));
+        } catch (\InvalidArgumentException $e) {
+            session()->setFlashdata(getMessageFail('toast', ['text' => $e->getMessage()]));
+            return redirect()->back()->withInput();
+        }
 
-        $manifestacaoModel->update($id, ['inscricao_pj_id' => $valor]);
+        $db = \Config\Database::connect();
+        $db->transStart();
+        model(ManifestacaoInscricaoModel::class)
+            ->salvarParaManifestacao($id, $inscricoesPf, $inscricoesPj);
+        $manifestacaoModel->update($id, [
+            'inscricao_pj_id' => $this->primeiraInscricaoPjLegada($inscricoesPj),
+        ]);
+        if (!$db->transComplete()) {
+            session()->setFlashdata(getMessageFail('toast', ['text' => 'Não foi possível atualizar as identificações.']));
+            return redirect()->back()->withInput();
+        }
 
-        session()->setFlashdata(getMessageSucess('toast', ['text' => 'Registro do estabelecimento atualizado.']));
+        session()->setFlashdata(getMessageSucess('toast', ['text' => 'Identificações atualizadas.']));
         return redirect()->to(url_to('ouvidoria.manifestacoes.show', $id));
+    }
+
+    /**
+     * Normaliza os campos repetíveis e rejeita valores que não sejam inscrições numéricas.
+     *
+     * @return string[]
+     */
+    private function normalizarInscricoes($valores): array
+    {
+        if ($valores === null || $valores === '') {
+            return [];
+        }
+        if (!is_array($valores)) {
+            $valores = [$valores];
+        }
+
+        $resultado = [];
+        foreach ($valores as $valor) {
+            if (is_array($valor)) {
+                throw new \InvalidArgumentException('Informe inscrições válidas.');
+            }
+            $valor = trim((string) $valor);
+            if ($valor === '') {
+                continue;
+            }
+            if (!preg_match('/^\d{1,30}$/', $valor)) {
+                throw new \InvalidArgumentException('As inscrições devem conter somente números (até 30 dígitos).');
+            }
+            $resultado[] = $valor;
+        }
+
+        return array_values(array_unique($resultado));
+    }
+
+    /**
+     * O campo legado é INT UNSIGNED; valores maiores continuam disponíveis na nova relação.
+     *
+     * @param string[] $inscricoesPj
+     */
+    private function primeiraInscricaoPjLegada(array $inscricoesPj): ?int
+    {
+        if (!isset($inscricoesPj[0])) {
+            return null;
+        }
+
+        $valor = ltrim($inscricoesPj[0], '0');
+        $valor = $valor === '' ? '0' : $valor;
+        if (strlen($valor) > 10 || (strlen($valor) === 10 && strcmp($valor, '4294967295') > 0)) {
+            return null;
+        }
+
+        return (int) $valor;
     }
 
     /**

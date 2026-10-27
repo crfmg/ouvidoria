@@ -60,13 +60,17 @@ class ManifestacaoCategoriaModel extends Model
      */
     public function salvarParaManifestacao(int $manifestacaoId, array $categoriaIds): void
     {
-        $this->where('manifestacao_id', $manifestacaoId)->delete();
+        if ($this->where('manifestacao_id', $manifestacaoId)->delete() === false) {
+            throw new \RuntimeException('Falha ao limpar as categorias da manifestação.');
+        }
         $categoriaIds = array_filter(array_map('intval', $categoriaIds));
         foreach ($categoriaIds as $catId) {
-            $this->insert([
+            if ($this->insert([
                 'manifestacao_id'            => $manifestacaoId,
                 'categoria_manifestacao_id'   => $catId,
-            ]);
+            ]) === false) {
+                throw new \RuntimeException('Falha ao salvar as categorias da manifestação.');
+            }
         }
     }
 }

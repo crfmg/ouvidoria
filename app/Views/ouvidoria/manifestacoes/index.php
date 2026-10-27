@@ -135,8 +135,9 @@ Manifestações - Ouvidoria
 <?= $this->section('js') ?>
 <script>
 $(function() {
-    if ($('#tableManifestacoes').length && $('#tableManifestacoes tbody tr').length > 0) {
-        $('#tableManifestacoes').DataTable({
+    var $table = $('#tableManifestacoes');
+    if ($table.length && $table.find('tbody tr').length > 0 && $table.find('tbody tr td[colspan]').length === 0) {
+        $table.DataTable({
             language: {
                 url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/pt-BR.json',
                 search: 'Buscar:',

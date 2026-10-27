@@ -19,6 +19,7 @@ $routes->group('ouvidoria', ['filter' => 'auth'], static function ($routes) {
     // Manifestações
     $routes->get('manifestacoes', 'ManifestacoesController::index', ['as' => 'ouvidoria.manifestacoes.index']);
     $routes->get('manifestacoes/create', 'ManifestacoesController::create', ['as' => 'ouvidoria.manifestacoes.create']);
+    $routes->get('manifestacoes/buscar-identificacao', 'ManifestacoesController::buscarIdentificacao', ['as' => 'ouvidoria.manifestacoes.buscarIdentificacao']);
     $routes->post('manifestacoes/store', 'ManifestacoesController::store', ['as' => 'ouvidoria.manifestacoes.store']);
     $routes->get('manifestacoes/show/(:num)', 'ManifestacoesController::show/$1', ['as' => 'ouvidoria.manifestacoes.show']);
     $routes->get('manifestacoes/edit/(:num)', 'ManifestacoesController::edit/$1', ['as' => 'ouvidoria.manifestacoes.edit']);

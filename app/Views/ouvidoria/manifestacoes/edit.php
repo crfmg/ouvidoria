@@ -75,10 +75,37 @@ Editar Manifestação <?= esc($manifestacao['protocolo']) ?> - Ouvidoria
                 <label class="form-label">Prazo (dias)</label>
                 <input type="number" name="sla_prazo_em_dias" class="form-control" value="<?= esc(old('sla_prazo_em_dias', $manifestacao['sla_prazo_em_dias'] ?? 30)) ?>" min="1">
             </div>
-            <div class="col-12 col-md-4">
-                <label class="form-label">Registro do Estabelecimento</label>
-                <input type="number" name="inscricao_pj_id" class="form-control" value="<?= esc(old('inscricao_pj_id', $manifestacao['inscricao_pj_id'] ?? '')) ?>" placeholder="Número do estabelecimento" min="0" step="1">
-                <small class="text-muted">Opcional. Identificador do estabelecimento que recebe a manifestação.</small>
+            <?php
+            $valoresPj = old('inscricoes_pj');
+            $valoresPf = old('inscricoes_pf');
+            $valoresPj = is_array($valoresPj) ? $valoresPj : ($inscricoesPj ?? []);
+            $valoresPf = is_array($valoresPf) ? $valoresPf : ($inscricoesPf ?? []);
+            $valoresPj = $valoresPj !== [] ? $valoresPj : [''];
+            $valoresPf = $valoresPf !== [] ? $valoresPf : [''];
+            ?>
+            <div class="col-12 col-lg-6">
+                <label class="form-label">Registros de Estabelecimento (PJ)</label>
+                <div id="listaInscricoesPj" class="d-grid gap-2">
+                    <?php foreach ($valoresPj as $inscricao): ?>
+                    <div class="input-group item-inscricao">
+                        <input type="text" inputmode="numeric" pattern="[0-9]+" maxlength="30" name="inscricoes_pj[]" class="form-control" value="<?= esc($inscricao) ?>" placeholder="Número do estabelecimento">
+                        <button type="button" class="btn btn-outline-danger btn-remover-inscricao" title="Remover"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary mt-2 btn-adicionar-inscricao" data-lista="listaInscricoesPj" data-nome="inscricoes_pj[]" data-placeholder="Número do estabelecimento"><i class="fas fa-plus me-1"></i>Adicionar estabelecimento</button>
+            </div>
+            <div class="col-12 col-lg-6">
+                <label class="form-label">Inscrições de Pessoa Física (PF)</label>
+                <div id="listaInscricoesPf" class="d-grid gap-2">
+                    <?php foreach ($valoresPf as $inscricao): ?>
+                    <div class="input-group item-inscricao">
+                        <input type="text" inputmode="numeric" pattern="[0-9]+" maxlength="30" name="inscricoes_pf[]" class="form-control" value="<?= esc($inscricao) ?>" placeholder="Número da inscrição PF">
+                        <button type="button" class="btn btn-outline-danger btn-remover-inscricao" title="Remover"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary mt-2 btn-adicionar-inscricao" data-lista="listaInscricoesPf" data-nome="inscricoes_pf[]" data-placeholder="Número da inscrição PF"><i class="fas fa-plus me-1"></i>Adicionar inscrição PF</button>
             </div>
             <div class="col-12">
                 <label class="form-label">Adicionar anexos</label>
@@ -135,6 +162,43 @@ Editar Manifestação <?= esc($manifestacao['protocolo']) ?> - Ouvidoria
 document.addEventListener('DOMContentLoaded', function() {
     var anexosPendentes = [];
     var inputAnexos = document.getElementById('anexosInput');
+    function adicionarInscricao(lista, nome, placeholder) {
+        var item = document.createElement('div');
+        item.className = 'input-group item-inscricao';
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.inputMode = 'numeric';
+        input.pattern = '[0-9]+';
+        input.maxLength = 30;
+        input.name = nome;
+        input.className = 'form-control';
+        input.placeholder = placeholder;
+        var remover = document.createElement('button');
+        remover.type = 'button';
+        remover.className = 'btn btn-outline-danger btn-remover-inscricao';
+        remover.title = 'Remover';
+        remover.innerHTML = '<i class="fas fa-trash"></i>';
+        item.appendChild(input);
+        item.appendChild(remover);
+        lista.appendChild(item);
+        input.focus();
+    }
+    document.querySelectorAll('.btn-adicionar-inscricao').forEach(function(botao) {
+        botao.addEventListener('click', function() {
+            adicionarInscricao(document.getElementById(botao.dataset.lista), botao.dataset.nome, botao.dataset.placeholder);
+        });
+    });
+    document.addEventListener('click', function(evento) {
+        var botao = evento.target.closest('.btn-remover-inscricao');
+        if (!botao) return;
+        var item = botao.closest('.item-inscricao');
+        var lista = item.parentElement;
+        if (lista.querySelectorAll('.item-inscricao').length === 1) {
+            item.querySelector('input').value = '';
+        } else {
+            item.remove();
+        }
+    });
     var descricaoInicial = document.getElementById('descricao-inicial') ? document.getElementById('descricao-inicial').value : '';
     var quill = new Quill('#editor-descricao', {
         theme: 'snow',
