@@ -223,13 +223,13 @@ class Database extends Config
         }
         
         $this->pharmakon  = [
-            'DSN'          => env('database.pharmakon.dns'),
-            'hostname'     => env('database.pharmakon.hostname'),
-            'username'     => env('database.pharmakon.username'),
-            'password'     => env('database.pharmakon.password'),
-            'database'     => env('database.pharmakon.database'),
-            'DBDriver'     => env('database.pharmakon.DBDriver'),
-            'DBPrefix'     => env('database.pharmakon.DBPrefix'),
+            'DSN'          => $this->envOrDefault('database.pharmakon.dns', $this->pharmakon['DSN']),
+            'hostname'     => $this->envOrDefault('database.pharmakon.hostname', $this->pharmakon['hostname']),
+            'username'     => $this->envOrDefault('database.pharmakon.username', $this->pharmakon['username']),
+            'password'     => $this->envOrDefault('database.pharmakon.password', $this->pharmakon['password']),
+            'database'     => $this->envOrDefault('database.pharmakon.database', $this->pharmakon['database']),
+            'DBDriver'     => $this->envOrDefault('database.pharmakon.DBDriver', $this->pharmakon['DBDriver']),
+            'DBPrefix'     => $this->envOrDefault('database.pharmakon.DBPrefix', $this->pharmakon['DBPrefix']),
             'pConnect'     => false,
             'DBDebug'      => true,
             'charset'      => 'utf8',
@@ -239,8 +239,22 @@ class Database extends Config
             'compress'     => false,
             'strictOn'     => false,
             'failover'     => [],
-            'port'         => intval(env('database.pharmakon.port')),
+            'port'         => (int) $this->envOrDefault('database.pharmakon.port', $this->pharmakon['port']),
             'numberNative' => false,
+            'options'      => [
+                \PDO::ATTR_EMULATE_PREPARES => true,
+            ],
         ];
+
+    }
+
+     /**
+     * Mantém o valor padrão do grupo quando a variável de ambiente não estiver definida.
+     */
+    private function envOrDefault(string $key, mixed $default): mixed
+    {
+        $value = env($key);
+
+        return $value === null || $value === '' ? $default : $value;
     }
 }

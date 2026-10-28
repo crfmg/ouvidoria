@@ -11,6 +11,8 @@ use App\Models\ManifestacaoHistoricoModel;
 use App\Models\ManifestacaoInscricaoModel;
 use App\Models\ManifestacaoSolicitacaoPrazoModel;
 use App\Models\UsuarioModel;
+use App\Models\Pharmakon\TblPF;
+use App\Models\Pharmakon\TblPJ;
 
 /**
  * Controller de Manifestações.
@@ -259,20 +261,8 @@ class ManifestacoesController extends BaseController
         }
 
         try {
-            $db = \Config\Database::connect('pharmakon');
-            if ($tipo === 'PJ') {
-                $registro = $db->query(
-                    'SELECT TOP 1 InscricaoPJId AS inscricao, RazaoSocial AS nome, NomeFantasia AS detalhe
-                     FROM TblPJ WHERE InscricaoPJId = ?',
-                    [(int) $inscricao]
-                )->getRowArray();
-            } else {
-                $registro = $db->query(
-                    'SELECT TOP 1 InscricaoPFId AS inscricao, NomePF AS nome
-                     FROM TblPF WHERE InscricaoPFId = ?',
-                    [(int) $inscricao]
-                )->getRowArray();
-            }
+            $pessoaModel = model($tipo === 'PJ' ? TblPJ::class : TblPF::class);
+            $registro = $pessoaModel->buscarIdentificacao((int) $inscricao);
         } catch (\Throwable $e) {
             log_message('error', sprintf(
                 'Erro ao consultar identificação no Pharmakon [PHARMAKON_CONNECTION] (%s): %s em %s:%d',
