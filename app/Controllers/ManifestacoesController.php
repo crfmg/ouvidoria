@@ -239,7 +239,11 @@ class ManifestacoesController extends BaseController
         }
 
         $configuracaoBanco = config(\Config\Database::class)->pharmakon;
-        $camposObrigatorios = ['hostname', 'username', 'database', 'DBDriver'];
+        // O DSN pode definir o servidor e o banco, como na conexão PDO/ODBC.
+        $temDsn = trim((string) ($configuracaoBanco['DSN'] ?? '')) !== '';
+        $camposObrigatorios = $temDsn
+            ? ['DBDriver']
+            : ['hostname', 'username', 'database', 'DBDriver'];
         foreach ($camposObrigatorios as $campo) {
             if (trim((string) ($configuracaoBanco[$campo] ?? '')) === '') {
                 log_message('error', 'Consulta de identificação indisponível [PHARMAKON_CONFIG]: campo ' . $campo . ' não configurado.');
