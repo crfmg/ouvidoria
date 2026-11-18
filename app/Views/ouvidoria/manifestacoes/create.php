@@ -91,7 +91,7 @@ Nova Manifestação - Ouvidoria
             <div class="row g-3 linha-identificacoes">
             <div class="col-12 campo-prazo">
                 <label class="form-label">Prazo (dias)</label>
-                <input type="number" name="sla_prazo_em_dias" class="form-control" value="<?= esc(old('sla_prazo_em_dias', 30)) ?>" min="1" aria-label="Prazo em dias">
+                <input type="number" name="sla_prazo_em_dias" class="form-control" value="<?= esc(old('sla_prazo_em_dias', 60)) ?>" min="1" aria-label="Prazo em dias">
             </div>
             <div class="col-12 campo-identificacao">
                 <label class="form-label">Registros de Estabelecimento (PJ)</label>
