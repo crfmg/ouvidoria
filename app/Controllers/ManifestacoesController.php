@@ -70,8 +70,8 @@ class ManifestacoesController extends BaseController
                 $ids = array_unique(array_column($ids, 'manifestacao_id'));
             }
             $manifestacaoModel->groupStart()
-                ->where('criado_por_usuario_id', $usuarioId)
-                ->orWhereIn('id', $ids ?: [0])
+                ->where('manifestacoes.criado_por_usuario_id', $usuarioId)
+                ->orWhereIn('manifestacoes.id', $ids ?: [0])
             ->groupEnd();
         }
 
@@ -101,8 +101,14 @@ class ManifestacoesController extends BaseController
         }
         //ticket #515 -inicio
         if ($fiscal = $this->request->getGet('fiscais')) {
-            $manifestacaoModel->join('manifestacao_atribuicoes ma', 'manifestacoes.id = ma.manifestacao_id', 'inner')
-                ->where('ma.atribuido_para_usuario_id', $fiscal);
+            // A subconsulta evita colisao entre os campos "id" das duas tabelas
+            // e nao duplica manifestacoes que tenham mais de uma atribuicao ao fiscal.
+            $manifestacaoModel->whereIn('manifestacoes.id', static function ($builder) use ($fiscal) {
+                return $builder
+                    ->select('manifestacao_id')
+                    ->from('manifestacao_atribuicoes')
+                    ->where('atribuido_para_usuario_id', (int) $fiscal);
+            });
         }
         //ticket #515 -fim
 
